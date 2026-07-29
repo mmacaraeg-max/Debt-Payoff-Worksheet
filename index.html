@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Debt payoff worksheet</title>
+<style>
+  :root{
+    --text-primary:#1a1a1a; --text-secondary:#666;
+    --border:#ddd; --border-strong:#bbb;
+    --surface-1:#f0f0f0;
+    --bg-danger:#fbeaea; --text-danger:#c0392b;
+    --bg-warning:#fff6c9;
+    --fill-success:#0f6e56; --on-success:#ffffff;
+    --fill-secondary:#e8e8e8;
+    --radius:8px;
+  }
+  body{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; color:var(--text-primary); max-width:900px; margin:2rem auto; padding:0 1rem; }
+  h1{ font-size:22px; font-weight:600; margin:0; }
+  select{ width:100%; padding:4px; }
+  button{ cursor:pointer; padding:8px 16px; border-radius:var(--radius); font-size:14px; }
+  table{ width:100%; border-collapse:collapse; font-size:13px; table-layout:fixed; }
+  th{ text-align:center; padding:8px; background:var(--surface-1); border:0.5px solid var(--border); font-weight:600; }
+  td{ padding:8px; border:1px dashed var(--border-strong); vertical-align:middle; }
+</style>
+</head>
+<body>
+
+<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:0.5rem 0 1.25rem;">
+  <h1>Debt payoff worksheet</h1>
+  <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span style="font-size:14px;color:var(--text-secondary);">Total balance</span>
+      <span id="total" style="font-family:monospace;font-weight:600;font-size:15px;background:var(--bg-danger);color:var(--text-danger);padding:5px 10px;border-radius:var(--radius);">$1.00</span>
+    </div>
+    <button id="finalizeBtn" style="background:var(--fill-success);color:var(--on-success);border:none;font-weight:600;">Finalize</button>
+  </div>
+</div>
+
+<table>
+  <colgroup>
+    <col style="width:26%;"><col style="width:16%;"><col style="width:18%;"><col style="width:14%;"><col style="width:26%;">
+  </colgroup>
+  <thead>
+    <tr>
+      <th>Payee name</th>
+      <th>Type</th>
+      <th>Account # - last 4</th>
+      <th>Amount</th>
+      <th>Note</th>
+    </tr>
+  </thead>
+  <tbody id="rows"></tbody>
+</table>
+
+<button id="addRowBtn" style="margin-top:12px;background:#fff;border:1px solid var(--border-strong);">+ Add row</button>
+
+<script>
+const rowsEl = document.getElementById('rows');
+const totalEl = document.getElementById('total');
+const finalizeBtn = document.getElementById('finalizeBtn');
+const addRowBtn = document.getElementById('addRowBtn');
+const typeOptions = ['Delinquent HOA dues', 'Past due mortgage payment', 'Other'];
+let finalized = false;
+
+function currency(n){ return '$' + n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function parseAmount(v){ const n = parseFloat(String(v).replace(/[^0-9.-]/g,'')); return isNaN(n) ? 0 : n; }
+
+function recalcTotal(){
+  let sum = 0;
+  rowsEl.querySelectorAll('td.amount-cell').forEach(cell => { sum += parseAmount(cell.dataset.raw); });
+  totalEl.textContent = currency(sum);
+}
+
+function makeRow({payee, type, account, amount, note, isNew}){
+  const tr = document.createElement('tr');
+  if (isNew) tr.style.background = 'var(--bg-warning)';
+
+  const payeeTd = document.createElement('td');
+  payeeTd.contentEditable = true;
+  payeeTd.textContent = payee;
+  payeeTd.dataset.placeholder = payee;
+
+  const typeTd = document.createElement('td');
+  const select = document.createElement('select');
+  typeOptions.forEach(opt => {
+    const o = document.createElement('option');
+    o.textContent = opt; o.value = opt;
+    if (opt === type) o.selected = true;
+    select.appendChild(o);
+  });
+  typeTd.appendChild(select);
+
+  const accountTd = document.createElement('td');
+  accountTd.contentEditable = true;
+  accountTd.textContent = account;
+  accountTd.style.textAlign = 'center';
+
+  const amountTd = document.createElement('td');
+  amountTd.contentEditable = true;
+  amountTd.className = 'amount-cell';
+  amountTd.dataset.raw = amount;
+  amountTd.textContent = currency(parseAmount(amount));
+  amountTd.style.textAlign = 'right';
+
+  const noteTd = document.createElement('td');
+  noteTd.contentEditable = true;
+  noteTd.textContent = note;
+  noteTd.dataset.placeholder = note;
+
+  function clearHighlight(){ tr.style.background = ''; }
+
+  [payeeTd, noteTd].forEach(td => {
+    td.addEventListener('focus', () => {
+      if (td.textContent === td.dataset.placeholder) {
+        const range = document.createRange();
+        range.selectNodeContents(td);
+        const sel = window.getSelection();
+        sel.removeAllRanges(); sel.addRange(range);
+      }
+    });
+    td.addEventListener('input', clearHighlight);
+  });
+  accountTd.addEventListener('input', clearHighlight);
+  select.addEventListener('change', clearHighlight);
+
+  amountTd.addEventListener('focus', () => {
+    amountTd.textContent = amountTd.dataset.raw;
+    const range = document.createRange();
+    range.selectNodeContents(amountTd);
+    const sel = window.getSelection();
+    sel.removeAllRanges(); sel.addRange(range);
+  });
+  amountTd.addEventListener('blur', () => {
+    const val = parseAmount(amountTd.textContent);
+    amountTd.dataset.raw = val;
+    amountTd.textContent = currency(val);
+    clearHighlight();
+    recalcTotal();
+  });
+
+  tr.append(payeeTd, typeTd, accountTd, amountTd, noteTd);
+  return tr;
+}
+
+rowsEl.appendChild(makeRow({payee:'Add payee here', type:'Other', account:'1234', amount:'1.00', note:'Add notes here', isNew:true}));
+for (let i = 0; i < 3; i++){
+  rowsEl.appendChild(makeRow({payee:'', type:'Other', account:'', amount:'0.00', note:'', isNew:false}));
+}
+recalcTotal();
+
+addRowBtn.addEventListener('click', () => {
+  const row = makeRow({payee:'Add payee here', type:'Other', account:'1234', amount:'1.00', note:'Add notes here', isNew:true});
+  rowsEl.appendChild(row);
+  recalcTotal();
+  row.querySelector('td').focus();
+});
+
+finalizeBtn.addEventListener('click', () => {
+  finalized = !finalized;
+  rowsEl.querySelectorAll('[contenteditable]').forEach(el => el.contentEditable = !finalized);
+  rowsEl.querySelectorAll('select').forEach(el => el.disabled = finalized);
+  addRowBtn.disabled = finalized;
+  finalizeBtn.textContent = finalized ? 'Unfinalize' : 'Finalize';
+  finalizeBtn.style.background = finalized ? 'var(--text-danger)' : 'var(--fill-success)';
+  finalizeBtn.style.color = finalized ? '#ffffff' : 'var(--on-success)';
+});
+</script>
+</body>
+</html>
