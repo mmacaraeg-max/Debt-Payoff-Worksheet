@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Debt Payoff Worksheet</title>
+<style>
+  :root{
+    --text-primary: #1a1a1a; 
+    --text-secondary: #666;
+    --border: #ddd; 
+    --border-strong: #bbb;
+    --surface-1: #f0f0f0;
+    --bg-danger: #fbeaea; 
+    --text-danger: #c0392b;
+    --bg-warning: #fff6c9;
+    --fill-success: #0f6e56; 
+    --on-success: #ffffff;
+    --fill-brand: #0b72b9;
+    --radius: 6px;
+  }
+
+  body { 
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; 
+    color: var(--text-primary); 
+    max-width: 950px; 
+    margin: 2rem auto; 
+    padding: 0 1rem; 
+  }
+  
+  .header-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 0.5rem 0 1.25rem;
+  }
+  
+  h1 { font-size: 22px; font-weight: 700; margin: 0; }
+  
+  select { 
+    width: 100%; 
+    padding: 4px 6px; 
+    box-sizing: border-box; 
+    border: 1px solid var(--border-strong);
+    border-radius: 4px;
+    background-color: #fff;
+    font-size: 13px;
+    white-space: nowrap !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  button { 
+    cursor: pointer; 
+    padding: 8px 18px; 
+    border-radius: var(--radius); 
+    font-size: 14px; 
+    font-weight: 600;
+    border: none;
+    transition: background-color 0.2s ease;
+  }
+  
+  table { 
+    width: 100%; 
+    border-collapse: collapse; 
+    font-size: 13px; 
+    table-layout: fixed; 
+  }
+  
+  tr {
+    height: 38px;
+  }
+
+  th, td {
+    white-space: nowrap !important;
+    word-break: keep-all !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    box-sizing: border-box;
+  }
+  
+  th { 
+    text-align: center; 
+    padding: 8px; 
+    background: var(--surface-1); 
+    border: 0.5px solid var(--border); 
+    font-weight: 600; 
+  }
+  
+  td { 
+    padding: 8px; 
+    border: 1px dashed var(--border-strong); 
+    vertical-align: middle; 
+  }
+
+  td[contenteditable] {
+    max-height: 38px;
+    line-height: 1.2;
+    outline: none;
+  }
+
+  td[contenteditable]:focus {
+    outline: 2px solid var(--fill-brand);
+    outline-offset: -2px;
+  }
+  
+  /* Modified Field Highlight */
+  .field-modified {
+    background-color: var(--bg-warning) !important;
+  }
+
+  /* Footer Layout */
+  .footer-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 2rem;
+  }
+
+  .footer-note {
+    font-size: 14px;
+    color: var(--text-primary);
+  }
+
+  .btn-save {
+    background: var(--fill-brand);
+    color: #fff;
+    padding: 10px 24px;
+  }
+
+  .btn-save:hover {
+    opacity: 0.9;
+  }
+
+  /* Modal Styling */
+  .modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+  }
+
+  .modal-card {
+    background: #fff;
+    border-radius: 8px;
+    padding: 24px 28px;
+    width: 360px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    text-align: center;
+  }
+
+  .modal-card p {
+    font-size: 15px;
+    margin: 0 0 20px 0;
+    color: var(--text-primary);
+    font-weight: 500;
+  }
+
+  .modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+  }
+
+  .btn-cancel {
+    background: #e0e0e0;
+    color: var(--text-primary);
+  }
+
+  .btn-confirm {
+    background: var(--fill-brand);
+    color: #fff;
+  }
+</style>
+</head>
+<body>
+
+<div class="header-container">
+  <h1>Debt Payoff Worksheet</h1>
+  <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span style="font-size:14px;color:var(--text-secondary);">Total Balance:</span>
+      <span id="total" style="font-family:monospace;font-weight:600;font-size:15px;background:var(--bg-danger);color:var(--text-danger);padding:5px 10px;border-radius:var(--radius);">$0.00</span>
+    </div>
+    <button id="finalizeBtn" style="background:var(--fill-success);color:var(--on-success);">Finalize</button>
+  </div>
+</div>
+
+<table>
+  <colgroup>
+    <col style="width:26%;"><col style="width:20%;"><col style="width:16%;"><col style="width:14%;"><col style="width:24%;">
+  </colgroup>
+  <thead>
+    <tr>
+      <th>Payee Name</th>
+      <th>Type</th>
+      <th>Account # - Last 4</th>
+      <th>Amount</th>
+      <th>Note</th>
+    </tr>
+  </thead>
+  <tbody id="rows"></tbody>
+</table>
+
+<button id="addRowBtn" style="margin-top:12px;background:#fff;border:1px solid var(--border-strong);color:var(--text-primary);">+ Add row</button>
+
+<div class="footer-container">
+  <div class="footer-note">• Debts will be paid at closing through escrow.</div>
+  <button id="saveBtn" class="btn-save">Save</button>
+</div>
+
+<!-- Save Confirmation Modal -->
+<div id="saveModal" class="modal-overlay" style="display: none;">
+  <div class="modal-card">
+    <p>Are you sure to want to save changes?</p>
+    <div class="modal-actions">
+      <button id="modalCancelBtn" class="btn-cancel">Cancel</button>
+      <button id="modalOkBtn" class="btn-confirm">OK</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const rowsEl = document.getElementById('rows');
+const totalEl = document.getElementById('total');
+const finalizeBtn = document.getElementById('finalizeBtn');
+const addRowBtn = document.getElementById('addRowBtn');
+const saveBtn = document.getElementById('saveBtn');
+const saveModal = document.getElementById('saveModal');
+const modalCancelBtn = document.getElementById('modalCancelBtn');
+const modalOkBtn = document.getElementById('modalOkBtn');
+
+const typeOptions = ['Delinquent HOA dues', 'Past due mortgage payment', 'Other'];
+let finalized = false;
+
+function currency(n){ return '$' + n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function parseAmount(v){ const n = parseFloat(String(v).replace(/[^0-9.-]/g,'')); return isNaN(n) ? 0 : n; }
+
+function recalcTotal(){
+  let sum = 0;
+  rowsEl.querySelectorAll('td.amount-cell').forEach(cell => { sum += parseAmount(cell.dataset.raw); });
+  totalEl.textContent = currency(sum);
+}
+
+function markAsModified(target) {
+  if (!finalized) {
+    target.classList.add('field-modified');
+  }
+}
+
+function clearAllHighlights() {
+  rowsEl.querySelectorAll('.field-modified').forEach(el => el.classList.remove('field-modified'));
+}
+
+// Enforce single line behavior on editable cells
+function preventMultiline(td) {
+  td.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault(); // Block Enter key
+    }
+  });
+
+  td.addEventListener('paste', (e) => {
+    e.preventDefault();
+    const text = (e.clipboardData || window.clipboardData).getData('text/plain');
+    const cleanText = text.replace(/[\r\n]+/g, ' '); // Strip line breaks
+    document.execCommand('insertText', false, cleanText);
+  });
+}
+
+function makeRow({payee, type, account, amount, note}){
+  const tr = document.createElement('tr');
+
+  const payeeTd = document.createElement('td');
+  payeeTd.contentEditable = true;
+  payeeTd.textContent = payee;
+  preventMultiline(payeeTd);
+
+  const typeTd = document.createElement('td');
+  const select = document.createElement('select');
+  typeOptions.forEach(opt => {
+    const o = document.createElement('option');
+    o.textContent = opt; o.value = opt;
+    if (opt === type) o.selected = true;
+    select.appendChild(o);
+  });
+  typeTd.appendChild(select);
+
+  const accountTd = document.createElement('td');
+  accountTd.contentEditable = true;
+  accountTd.textContent = account;
+  accountTd.style.textAlign = 'center';
+  preventMultiline(accountTd);
+
+  const amountTd = document.createElement('td');
+  amountTd.contentEditable = true;
+  amountTd.className = 'amount-cell';
+  amountTd.dataset.raw = amount;
+  amountTd.textContent = currency(parseAmount(amount));
+  amountTd.style.textAlign = 'right';
+  preventMultiline(amountTd);
+
+  const noteTd = document.createElement('td');
+  noteTd.contentEditable = true;
+  noteTd.textContent = note;
+  preventMultiline(noteTd);
+
+  // Track field modifications
+  [payeeTd, accountTd, noteTd].forEach(td => {
+    td.addEventListener('input', () => markAsModified(td));
+  });
+
+  select.addEventListener('change', () => markAsModified(select));
+
+  amountTd.addEventListener('input', () => markAsModified(amountTd));
+  amountTd.addEventListener('focus', () => {
+    amountTd.textContent = amountTd.dataset.raw;
+    const range = document.createRange();
+    range.selectNodeContents(amountTd);
+    const sel = window.getSelection();
+    sel.removeAllRanges(); sel.addRange(range);
+  });
+  amountTd.addEventListener('blur', () => {
+    const val = parseAmount(amountTd.textContent);
+    amountTd.dataset.raw = val;
+    amountTd.textContent = currency(val);
+    recalcTotal();
+  });
+
+  tr.append(payeeTd, typeTd, accountTd, amountTd, noteTd);
+  return tr;
+}
+
+// Initial Rows
+for (let i = 0; i < 4; i++){
+  rowsEl.appendChild(makeRow({payee:'', type:'Other', account:'', amount:'0.00', note:''}));
+}
+recalcTotal();
+
+addRowBtn.addEventListener('click', () => {
+  const row = makeRow({payee:'', type:'Other', account:'', amount:'0.00', note:''});
+  rowsEl.appendChild(row);
+  recalcTotal();
+  row.querySelector('td').focus();
+});
+
+// Finalize / Unfinalize handler
+finalizeBtn.addEventListener('click', () => {
+  finalized = !finalized;
+  rowsEl.querySelectorAll('[contenteditable]').forEach(el => el.contentEditable = !finalized);
+  rowsEl.querySelectorAll('select').forEach(el => el.disabled = finalized);
+  addRowBtn.disabled = finalized;
+  
+  if (finalized) {
+    clearAllHighlights();
+  }
+
+  finalizeBtn.textContent = finalized ? 'Unfinalize' : 'Finalize';
+  finalizeBtn.style.background = finalized ? 'var(--text-danger)' : 'var(--fill-success)';
+  finalizeBtn.style.color = finalized ? '#ffffff' : 'var(--on-success)';
+});
+
+// Modal Logic
+saveBtn.addEventListener('click', () => {
+  saveModal.style.display = 'flex';
+});
+
+modalCancelBtn.addEventListener('click', () => {
+  saveModal.style.display = 'none';
+});
+
+modalOkBtn.addEventListener('click', () => {
+  saveModal.style.display = 'none';
+  alert('Changes saved successfully!');
+});
+</script>
+</body>
+</html>
