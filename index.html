@@ -294,7 +294,22 @@ function makeRow({payee, type, account, amount, note}){
   accountTd.contentEditable = true;
   accountTd.textContent = account;
   accountTd.style.textAlign = 'center';
-  preventMultiline(accountTd);
+  
+  // Custom rules for account column: no multiline, numbers only
+  accountTd.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') e.preventDefault();
+  });
+  accountTd.addEventListener('keypress', (e) => {
+    if (!/[0-9]/.test(e.key)) {
+      e.preventDefault(); // Block non-numeric characters
+    }
+  });
+  accountTd.addEventListener('paste', (e) => {
+    e.preventDefault();
+    const text = (e.clipboardData || window.clipboardData).getData('text/plain');
+    const cleanText = text.replace(/[^0-9]/g, ''); // Strip everything except digits
+    document.execCommand('insertText', false, cleanText);
+  });
 
   const amountTd = document.createElement('td');
   amountTd.contentEditable = true;
@@ -302,7 +317,34 @@ function makeRow({payee, type, account, amount, note}){
   amountTd.dataset.raw = amount;
   amountTd.textContent = currency(parseAmount(amount));
   amountTd.style.textAlign = 'right';
-  preventMultiline(amountTd);
+  
+  // Apply number/decimal restrictions to amount column
+  amountTd.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') e.preventDefault();
+  });
+  amountTd.addEventListener('keypress', (e) => {
+    // Allow digits and a single period
+    if (!/[0-9.]/.test(e.key)) {
+      e.preventDefault();
+    }
+    // Prevent multiple periods
+    if (e.key === '.' && amountTd.textContent.includes('.')) {
+      e.preventDefault();
+    }
+  });
+  amountTd.addEventListener('paste', (e) => {
+    e.preventDefault();
+    const text = (e.clipboardData || window.clipboardData).getData('text/plain');
+    // Keep digits and period
+    const cleanText = text.replace(/[^0-9.]/g, ''); 
+    // Basic logic to handle multiple periods pasted, taking the first valid float part
+    let parsedText = cleanText;
+    const parts = cleanText.split('.');
+    if (parts.length > 2) {
+      parsedText = parts[0] + '.' + parts.slice(1).join('');
+    }
+    document.execCommand('insertText', false, parsedText);
+  });
 
   const noteTd = document.createElement('td');
   noteTd.contentEditable = true;
@@ -375,7 +417,7 @@ modalCancelBtn.addEventListener('click', () => {
 
 modalOkBtn.addEventListener('click', () => {
   saveModal.style.display = 'none';
-  alert('Changes saved successfully!');
+  // Alert modal removed as requested
 });
 </script>
 </body>
